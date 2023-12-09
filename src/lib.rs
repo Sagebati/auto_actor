@@ -1,10 +1,9 @@
-mod attribute;
-mod chatgpt;
+mod logic;
 
 extern crate proc_macro;
 use proc_macro::{TokenStream};
 
-use syn::{parse_macro_input, DeriveInput, ItemImpl};
+use syn::{parse_macro_input, ItemImpl};
 use quote::quote;
 
 /// [1]: https://doc.rust-lang.org/reference/procedural-macros.html#derive-mode-macros
@@ -24,6 +23,6 @@ pub fn my_derive(_input: TokenStream) -> TokenStream {
 pub fn actrix(_args: TokenStream, input: TokenStream) -> TokenStream {
     let input: syn::ItemImpl = parse_macro_input!(input as ItemImpl);
 
-    let stream = chatgpt::actor(input);
+    let stream = logic::actor(input);
     TokenStream::from(stream)
 }

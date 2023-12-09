@@ -1,6 +1,9 @@
 #[cfg(test)]
 mod tests {
+    use std::sync::mpsc::channel;
+    use std::thread::spawn;
     use actrix::actrix;
+
 
     #[test]
     fn test() {
@@ -11,14 +14,34 @@ mod tests {
 
         #[actrix]
         impl A {
-            fn test(self, a: usize) {
-                todo!()
+            fn set_a(&mut self, a: usize) {
+                self.a = a;
             }
-            fn test1(&self, a: usize) { todo!() }
+            fn read_a(&self) -> usize {
+                self.a
+            }
 
-            fn test_ref(&self, a: &usize) -> usize { todo!() }
+            fn read_b(&self) -> &'static str {
+                self.b
+            }
         }
 
-        assert!(true)
+        let (s, r) = channel();
+        let server = AServer {
+             inner: A { a: 0, b: "" },
+             channel: r,
+         };
+
+        let client = AClient {
+            channel: s
+        };
+
+        spawn(move || {
+            server.event_loop();
+        });
+
+        assert_eq!(client.read_a(), 0);
+        client.set_a(3);
+        assert_eq!(client.read_a(), 3);
     }
 }

@@ -13,4 +13,5 @@ proc-macro = true
 quote = "1"
 proc-macro2 = "1.0"
 syn = { version = "2.0.39", features = ["full"] }
+unzip-n = "0.1.2"
 
