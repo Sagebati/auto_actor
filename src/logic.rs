@@ -12,6 +12,7 @@ fn param_names(method: &ImplItemFn) -> TokenStream {
 
     quote!( #method_inputs )
 }
+
 fn enum_variant(method: &ImplItemFn) -> (TokenStream, TokenStream) {
     // We remove the self from the method as is not needed in the protocol
     let method_output = &method.sig.output;
@@ -25,7 +26,7 @@ fn enum_variant(method: &ImplItemFn) -> (TokenStream, TokenStream) {
     let returns = match method_output {
         ReturnType::Default => None,
         ReturnType::Type(_, ty) => Some(quote! {
-                    std::sync::mpsc::Sender<#ty>
+                    flume::Sender<#ty>
                 })
     };
 
@@ -68,7 +69,7 @@ fn client_impls(method: &ImplItemFn, enum_name: &Ident) -> TokenStream {
     let mut return_type = None;
     if let ReturnType::Type(_, rtype) = &method.sig.output {
         init_channel = Some(quote! {
-           let (sender, recv) = std::sync::mpsc::channel();
+           let (sender, recv) = flume::unbounded();
         });
 
         return_binding = Some(quote!(sender));
@@ -96,7 +97,7 @@ fn client_impls(method: &ImplItemFn, enum_name: &Ident) -> TokenStream {
 
 pub fn actor(input: ItemImpl) -> TokenStream {
     let original_input = input.clone();
-    let struct_name = &input.self_ty;
+    let struct_type = &input.self_ty;
     let enum_type = Ident::new("AProt", Span::call_site());
     let server_type = Ident::new("AServer", Span::call_site());
     let client_type = Ident::new("AClient", Span::call_site());
@@ -124,7 +125,7 @@ pub fn actor(input: ItemImpl) -> TokenStream {
 
     let server_impl = quote! {
         impl #server_type {
-            fn event_loop(mut self) {
+            pub fn event_loop(mut self) {
                 while let Ok(message) = self.channel.recv() {
                     match message {
                         #( #server_impls )*
@@ -134,7 +135,7 @@ pub fn actor(input: ItemImpl) -> TokenStream {
         }
     };
 
-    let client_impl = quote!{
+    let client_impl = quote! {
         impl #client_type {
             #( #client_impls )*
         }
@@ -143,21 +144,38 @@ pub fn actor(input: ItemImpl) -> TokenStream {
     quote! {
         #original_input
 
-        #enum_decl
+        pub mod actor {
+            use super::*;
 
-        pub struct #server_type {
-            inner: #struct_name,
-            channel: std::sync::mpsc::Receiver<#enum_type>,
+            #[allow(non_camel_case_types)]
+            #enum_decl
+
+            #[derive(Debug)]
+            pub struct #server_type {
+                inner: #struct_type,
+                channel: flume::Receiver<#enum_type>,
+            }
+
+            #server_impl
+
+
+            #[derive(Clone, Debug)]
+            pub struct #client_type {
+                channel: flume::Sender<#enum_type>,
+            }
+
+            #client_impl
+
+            pub fn new_server_client(inner: #struct_type) -> (#client_type, #server_type) {
+                let (sender, receiver) = flume::unbounded();
+                (#client_type {
+                    channel: sender
+                },
+                #server_type {
+                    inner,
+                    channel: receiver
+                })
+            }
         }
-
-        #server_impl
-
-
-        #[derive(Clone)]
-        pub struct #client_type {
-            channel: std::sync::mpsc::Sender<#enum_type>,
-        }
-
-        #client_impl
     }
 }
