@@ -1,0 +1,16 @@
+[package]
+name = "actrix"
+version = "0.0.0"
+authors = ["sabati <samublaise@gmail.com>"]
+description = "A `cargo generate` template for quick-starting a procedural macro crate"
+keywords = ["template", "proc_macro", "procmacro"]
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "1"
+proc-macro2 = "1.0"
+syn = { version = "2.0.39", features = ["full"] }
+
